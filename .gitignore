@@ -1,0 +1,93 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+bin/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+.pytest_cache/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+htmlcov/
+.hypothesis/
+.pytest_cache/
+
+# Virtual Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# IDEs and Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# AGY / Private Assets & Agent Contexts
+.agents/
+.gemini/
+
+# Credentials, Secrets & Tokens
+credentials.json
+*.pem
+*.key
+*.secret
+
+# Logs, Reports & Temporary files
+*.log
+logs/
+reports/
+temp/
+tmp/
+*.lock
+
+# Internal Project Docs & Strategy
+docs/
+INSTRUCTIONS_INITIAL_PROMPT.md
+
+# GUI Private Source (Open-Core Architecture)
+portable_ea5_tester/gui.py
+portable_ea5_tester/docs/
+tests/
+portable_strategy_tester.spec
+menu.bat
+scripts/
+
+# Release packages
+release/
+AGENTS.md
