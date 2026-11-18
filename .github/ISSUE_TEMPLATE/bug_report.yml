@@ -1,0 +1,67 @@
+name: Bug Report
+description: Report a reproducible bug or unexpected behavior in portable-ea5-tester
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ### Thank you for reporting a bug!
+        Please ensure your report includes clear reproduction steps and relevant logs.
+        **Note**: This project is provided as-is. No individual technical support, trading advice, or personal troubleshooting is provided.
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug Description
+      description: Clear and concise description of what the bug is.
+      placeholder: Describe the unexpected behavior...
+    validations:
+      required: true
+  - type: input
+    id: mt5_version
+    attributes:
+      label: MT5 Build / Version
+      description: MetaTrader 5 build number or version (e.g. Build 4410).
+      placeholder: "4410"
+    validations:
+      required: true
+  - type: input
+    id: os_version
+    attributes:
+      label: Operating System Version
+      description: OS version (e.g. Windows 11 Pro 23H2).
+      placeholder: "Windows 11"
+    validations:
+      required: true
+  - type: textarea
+    id: command_or_params
+    attributes:
+      label: Command or Parameters Used
+      description: CLI command invoked or relevant config.json snippet.
+      placeholder: "pea5 run --config config.json"
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / Errors / Stack Traces
+      description: Paste relevant log output or traceback (sanitized of sensitive account credentials).
+      placeholder: "Paste logs here..."
+    validations:
+      required: false
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproducible Steps
+      description: Step-by-step instructions to reproduce the behavior.
+      placeholder: |
+        1. ...
+        2. ...
+        3. ...
+    validations:
+      required: true
+  - type: markdown
+    attributes:
+      value: |
+        > [!IMPORTANT]
+        > **Disclaimer**: No individual technical support or trading advice is provided. Please only submit reproducible bug reports with clean logs and steps.

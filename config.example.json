@@ -1,0 +1,20 @@
+{
+  "terminal": {
+    "directory": "C:/MT5-Portable",
+    "executable": "C:/MT5-Portable/terminal64.exe",
+    "compiler": "C:/MT5-Portable/metaeditor64.exe"
+  },
+  "tasks": [
+    {
+      "name": "MA_Sample_Test",
+      "expert": "C:/MT5-Portable/MQL5/Experts/Examples/Moving Average/Moving Average.ex5",
+      "symbol": "EURUSD",
+      "period": "H1",
+      "from_date": "2026.10.01",
+      "to_date": "2026.10.15",
+      "deposit": 10000,
+      "currency": "USD",
+      "leverage": 100
+    }
+  ]
+}
