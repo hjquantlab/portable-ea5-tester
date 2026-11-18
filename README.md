@@ -37,7 +37,7 @@
 
 ## 2. Prerequisites
 
-- **OS**: Windows 10 / 11 (64-bit required). MetaTrader 5 portable mode (`terminal64.exe` / `metaeditor64.exe`) and this tool are supported and tested exclusively on Windows.
+- **OS**: Windows 10 / 11 (64-bit required). MetaTrader 5 portable mode (`terminal64.exe` / `metaeditor64.exe`) and this tool are supported and tested exclusively on native Windows. macOS and Linux are not natively supported; while portable MT5 may run under Wine/Proton, such compatibility is untested and out of scope.
 - **Python**: Python 3.9 or higher
 - **MetaTrader 5**: A portable MT5 directory containing `terminal64.exe` and `metaeditor64.exe`
 
@@ -538,8 +538,9 @@ reports/20260330_Moving Average/Report_USDJPY_H1_set1.html
 
 ## 9. Maintenance & Support Policy
 
-- This repository is provided **As-Is** as an open-source CLI framework under the MIT License.
-- For inquiries, bug reports, or **Pro Edition** inquiries, contact: `hjquantlab@gmail.com`.
+- **As-Is Provision**: This tool is provided **As-Is** under the MIT License without warranty or guaranteed support of any kind.
+- **Scope & Limitations**: The project is maintained primarily for internal quantitative research and automation workflows. Individual troubleshooting, custom feature development, and assistance with external platforms (such as Wine/macOS) are out of scope.
+- **Contact**: For vulnerability disclosures or critical inquiries, reach out to `hjquantlab@gmail.com`.
 
 ## 10. License
 

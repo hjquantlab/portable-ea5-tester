@@ -37,7 +37,7 @@
 
 ## 2. 動作要件
 
-- **OS**: Windows 10 / 11 (64-bit 必須)。MetaTrader 5 ポータブルモード（`terminal64.exe` / `metaeditor64.exe`）および本ツールは Windows 環境専用としてテスト・提供されています。
+- **OS**: Windows 10 / 11（64-bit 必須）。MetaTrader 5 ポータブルモード（`terminal64.exe` / `metaeditor64.exe`）および本ツールは、ネイティブ Windows 環境専用としてテスト・提供されています。macOS および Linux はネイティブ非対応です。なお、Linux/macOS の Wine/Proton 環境下でポータブル MT5 が起動する可能性はありますが、動作確認は行っておらず対象外（Untested & Out of scope）となります。
 - **Python**: Python 3.9 以上
 - **MetaTrader 5**: `terminal64.exe` および `metaeditor64.exe` を含むポータブル版 MT5 ディレクトリ
 
@@ -538,8 +538,9 @@ reports/20260330_Moving Average/Report_USDJPY_H1_set1.html
 
 ## 9. 保守とサポートポリシー
 
-- 本リポジトリは MIT ライセンスに基づくオープンソースの CLI フレームワークとして **現状のまま（As-Is）** 提供されます。
-- お問い合わせ、バグ報告、および **Pro Edition** に関するご相談は `hjquantlab@gmail.com` までご連絡ください。
+- **現状有姿での提供**: 本ツールは MIT ライセンスに基づき、いかなる保証や個別サポート義務も伴わない **現状有姿（As-Is）** で提供されます。
+- **プロジェクトの範囲と制限**: 本ツールは主として内部の研究・自動化ワークフローのために保守されています。個別の環境トラブルシューティング、個別要望による機能開発、および非対応環境（Wine/macOS 等）への対応はプロジェクトの対象外となります。
+- **連絡先**: 脆弱性の報告や重要なお問い合わせは `hjquantlab@gmail.com` までご連絡ください。
 
 ## 10. ライセンス
 
