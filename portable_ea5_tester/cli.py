@@ -36,6 +36,7 @@ def print(*args, **kwargs):
         pass
 
 try:
+    from . import __version__
     from .compiler import compile_ea, find_metaeditor
     from .runner import run_tester
     from .config_resolver import resolve_terminal, resolve_credentials, load_config
@@ -49,6 +50,10 @@ try:
         launch_gui = None
 except ImportError:
     sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+    try:
+        from portable_ea5_tester import __version__
+    except ImportError:
+        __version__ = "1.0.0"
     from portable_ea5_tester.compiler import compile_ea, find_metaeditor
     from portable_ea5_tester.runner import run_tester
     from portable_ea5_tester.config_resolver import resolve_terminal, resolve_credentials, load_config
@@ -284,6 +289,11 @@ def main(argv: Optional[list] = None) -> None:
         prog="pea5",
         description=f"portable-ea5-tester (pea5): Headless MT5 EA compilation & Strategy Tester automation.\n\n{TRADEMARK_DISCLAIMER}",
         formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser.add_argument(
+        "--version", "-V",
+        action="version",
+        version=f"%(prog)s {__version__}",
     )
 
     subparsers = parser.add_subparsers(dest="command", help="Subcommand to execute")
