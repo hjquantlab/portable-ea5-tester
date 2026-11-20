@@ -49,10 +49,15 @@
 
 1. Install MetaTrader 5 (from MetaQuotes or your broker) if not already installed.
 2. Create a dedicated folder (e.g., `C:\MT5-Portable`) and copy `terminal64.exe` and `metaeditor64.exe` from your installation folder (e.g., `C:\Program Files\MetaTrader 5`) into `C:\MT5-Portable`.
-3. Launch MT5 **once** with the `/portable` flag so it initializes `MQL5/` and `Config/` inside `C:\MT5-Portable`, then close MT5:
+3. Launch MT5 **once** with the `/portable` flag so it initializes `MQL5/` and `Config/` inside `C:\MT5-Portable`, then close MT5.
+   Using the built-in launcher setup tool is recommended—first generate `launch_mt5_portable.bat` inside your portable MT5 folder:
    ```powershell
-   C:\MT5-Portable\terminal64.exe /portable
+   python -m portable_ea5_tester setup "C:\MT5-Portable"
+   # Or, once pea5 is installed:
+   pea5 setup "C:\MT5-Portable"
    ```
+   Then double-click or run `launch_mt5_portable.bat` inside `C:\MT5-Portable` to verify the exact `terminal64.exe` path and safely launch it with `/portable` after confirming the `y/n` prompt.
+   (Or run directly: `C:\MT5-Portable\terminal64.exe /portable`)
 
 > **Note**: If MetaEditor is launched manually or directly, it also requires `/portable` (`C:\MT5-Portable\metaeditor64.exe /portable`) to keep data inside the portable directory rather than `%APPDATA%`.
 > Need to create a `/portable` shortcut or clean up an accidental non-portable launch? See [FAQ Q1](#8-troubleshooting--faq).
@@ -115,22 +120,26 @@ If you use other environment managers (such as `uv`, `conda`, or `poetry`), adap
 
 ### Step 3: Configure & Run Smoke Test
 
-Copy the example files to create your local configuration and credentials:
+Copy the example configuration file to create your local `config.json` and edit `terminal_dir` (and `expert`, `symbol`, etc.) as needed:
 
 ```powershell
 copy config.example.json config.json
-copy credentials.example.json credentials.json
 ```
 
 > **JSON Path Note**: Always use forward slashes `/` (e.g., `"C:/MT5-Portable"`) or escaped backslashes `\\` in JSON files. Single backslashes `\` cause JSON syntax errors.
 
-Edit `credentials.json` with your broker account `login`, `password`, and `server`, then run the 4-command smoke test (other credential sources: see [7.4 Credentials](#74-credentials)):
+#### Basic / Default Setup (No `credentials.json` Required)
+
+For normal or interactive use, **you do not need `credentials.json`**. `pea5` automatically detects `Login` and `Server` from `<terminal_dir>/Config/common.ini` and uses MT5's cached password (pass `--offline` or set `"offline": true` in `config.json` when running purely on cached data).
+
+Run the 4-command smoke test:
 
 ```powershell
-# 1. Verify terminal, compiler, and credential paths
+# 1. Verify terminal, compiler, and detected account paths
 pea5 init --config config.json
 
-# 2. Launch MT5 GUI once to cache login credentials and sync broker history (close MT5 after login)
+# 2. Launch MT5 GUI (/portable) once, log in with "Save password" checked to cache credentials & sync history, then close MT5
+#    (Alternatively, use: .\scripts\launch_mt5_portable.bat)
 pea5 login --config config.json
 
 # 3. Compile an MQL5 EA (.mq5 -> .ex5)
@@ -139,6 +148,9 @@ pea5 compile --file "C:/MT5-Portable/MQL5/Experts/Examples/Moving Average/Moving
 # 4. Run the sample backtest and export Markdown/CSV summaries
 pea5 run --config config.json --export
 ```
+
+> **Scheduled / Unattended Batch Runs**: MT5's saved password cache may reset or expire after several days. For periodic or unattended batch execution without manual re-login, placing `credentials.json` **outside the repository** at `~/.config/portable-ea5-tester/credentials.json` (or setting `PEA5_PASSWORD`) is recommended (see [7.4 Credentials](#74-credentials)).
+> **Security Warning**: If you use `credentials.json`, never commit it to Git or paste its contents (`login`, `password`, `server`) into AI chats.
 
 ---
 
@@ -380,6 +392,7 @@ pea5 run --config config.json --task 0
 
 | Command | Purpose | Key Options |
 | :--- | :--- | :--- |
+| `pea5 setup` | Generate `launch_mt5_portable.bat` inside the portable MT5 folder | `<target>` (positional path to MT5 folder or `terminal64.exe`), `--terminal-dir` / `-d`, `--config` / `-c`, `--force` / `-f` (alias: `setup-launcher`) |
 | `pea5 init` | Verify `config.json`, MT5 terminal, MetaEditor, and credentials | `--config` / `-c` (default: `config.json`) |
 | `pea5 login` | Launch MT5 GUI (`/portable`) with pre-filled Login/Server to cache credentials | `--config` / `-c` (default: `config.json`) |
 | `pea5 compile` | Headless `.mq5` -> `.ex5` compilation via `metaeditor64.exe` | `--file` / `-f` (required), `--compiler`, `--terminal-dir` (automatically adds `/inc:<terminal_dir>/MQL5`), `--include` / `-i` (optional external include root outside `<terminal_dir>/MQL5`), `--timeout` (default: `60`) |
@@ -469,7 +482,19 @@ reports/20260330_Moving Average/Report_USDJPY_H1_set1.html
 
 ### 7.4 Credentials
 
-#### `credentials.json` Schema
+`pea5` supports a two-tier authentication model depending on how you run your tests:
+
+- **Basic / Interactive Use (No `credentials.json` required)**: `pea5` automatically detects `Login` and `Server` from `<terminal_dir>/Config/common.ini` and relies on MT5's cached password saved when you log in via `pea5 login --config config.json` (or `.\scripts\launch_mt5_portable.bat`) with **"Save password"** checked. Use `--offline` (or `"offline": true` in `config.json`) when running purely on cached data.
+- **Scheduled / Unattended Batch Runs (`credentials.json` recommended)**: MT5's saved password cache may reset or expire after several days. For periodic or unattended batch runs without manual re-login, store `credentials.json` **outside the repository** at `~/.config/portable-ea5-tester/credentials.json` (or provide `PEA5_PASSWORD`). Note that if a demo account expires or the broker requires 2FA/OTP or a password change, manual re-authentication is still required.
+
+> **Security Warning**: Never commit `credentials.json` to Git or paste its contents (`login`, `password`, `server`) into AI chats.
+
+#### `credentials.json` Schema (Optional / For Unattended Batch Runs)
+
+```powershell
+mkdir "$HOME\.config\portable-ea5-tester" -Force
+copy credentials.example.json "$HOME\.config\portable-ea5-tester\credentials.json"
+```
 
 ```json
 {
@@ -486,7 +511,7 @@ reports/20260330_Moving Average/Report_USDJPY_H1_set1.html
 3. User home config (`~/.config/portable-ea5-tester/credentials.json`, fallback `~/.config/portable-strategy-tester/credentials.json`)
 4. Environment variables (`PEA5_LOGIN`, `PEA5_PASSWORD`, `PEA5_SERVER`, fallback `PST_LOGIN`, `PST_PASSWORD`, `PST_SERVER`)
 
-> **Note on `--offline`**: Even in offline mode, `login` and `server` are **still required** so MT5 can locate broker history under `bases/<ServerName>/` and symbol specifications. Only `password` can be omitted when credentials are already cached via `pea5 login`.
+> **Note on `--offline` (No `credentials.json` / No `password`)**: Even in offline mode, `login` and `server` are **still required** so MT5 can locate broker history under `bases/<ServerName>/` and symbol specifications. When `Login` and `Server` are already present in `<terminal_dir>/Config/common.ini` and your password is cached via `pea5 login` (with "Save password" checked), you can run `pea5 run --offline` without `credentials.json` or `password`.
 
 ---
 
@@ -495,9 +520,10 @@ reports/20260330_Moving Average/Report_USDJPY_H1_set1.html
 <details>
 <summary>Q1: I accidentally launched terminal64.exe without /portable, or want a safe shortcut</summary>
 
-1. **Create a `/portable` shortcut**:
-   - Right-click `terminal64.exe` inside your portable MT5 directory (e.g., `C:\MT5-Portable\terminal64.exe`) -> **Create shortcut**.
-   - Right-click the shortcut -> **Properties** -> append ` /portable` to **Target** (e.g., `"C:\MT5-Portable\terminal64.exe" /portable`).
+1. **Use the safe launcher generator or create a `/portable` shortcut**:
+   - First run `python -m portable_ea5_tester setup "<path-to-mt5>"` (or `pea5 setup "<path-to-mt5>"`) to generate `launch_mt5_portable.bat` inside your MT5 portable folder.
+   - Then double-click or run `launch_mt5_portable.bat` inside that folder to verify the exact `terminal64.exe` path and launch it with `/portable` only after `y/n` confirmation.
+   - Or create a Windows shortcut: right-click `terminal64.exe` inside your portable MT5 directory (e.g., `C:\MT5-Portable\terminal64.exe`) -> **Create shortcut**, then right-click the shortcut -> **Properties** -> append ` /portable` to **Target** (e.g., `"C:\MT5-Portable\terminal64.exe" /portable`).
 2. **Clean up an accidental non-portable launch (`origin.txt` mechanism)**:
    - When MT5 is launched in standard (non-portable) mode, it creates a 32-character hexadecimal hash folder under `%APPDATA%\MetaQuotes\Terminal\<hash>\`. Inside that folder, `origin.txt` records the exact installation directory (e.g. `D:\Trading\MT5_Main` or `C:\Program Files\MetaTrader 5`) that generated that specific hash directory (`C:\MT5-Portable` is merely an example path).
    - **Safe cleanup procedure**:

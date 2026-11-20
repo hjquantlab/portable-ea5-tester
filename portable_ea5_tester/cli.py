@@ -42,6 +42,7 @@ try:
     from .config_resolver import resolve_terminal, resolve_credentials, load_config
     from .notebook_exporter import export_report
     from .report_parser import generate_batch_summary_html
+    from .launcher import install_portable_launcher
     # Open-Core design: gui.py is an optional Pro / standalone binary-edition module
     # intentionally excluded from the open-source CLI repository (not a missing file).
     try:
@@ -59,6 +60,7 @@ except ImportError:
     from portable_ea5_tester.config_resolver import resolve_terminal, resolve_credentials, load_config
     from portable_ea5_tester.notebook_exporter import export_report
     from portable_ea5_tester.report_parser import generate_batch_summary_html
+    from portable_ea5_tester.launcher import install_portable_launcher
     # Open-Core design: gui.py is an optional Pro / standalone binary-edition module
     # intentionally excluded from the open-source CLI repository (not a missing file).
     try:
@@ -276,6 +278,54 @@ def cmd_login(args: argparse.Namespace) -> int:
                 pass
 
 
+def cmd_setup_launcher(args: argparse.Namespace) -> int:
+    """Creates launch_mt5_portable.bat inside the portable MT5 folder."""
+    terminal_dir = args.terminal_dir or args.target
+    config_path = args.config
+    overwrite = bool(args.force)
+
+    try:
+        target_path = install_portable_launcher(
+            terminal_dir=terminal_dir,
+            config_path=config_path,
+            overwrite=overwrite,
+        )
+    except FileNotFoundError as e:
+        if not terminal_dir and sys.stdin.isatty():
+            try:
+                user_input = input("Enter MT5 portable folder or terminal64.exe path: ").strip()
+            except EOFError:
+                user_input = ""
+            if not user_input:
+                print(f"[ERROR] {e}")
+                return 1
+            try:
+                target_path = install_portable_launcher(
+                    terminal_dir=user_input,
+                    config_path=config_path,
+                    overwrite=overwrite,
+                )
+            except FileExistsError as fe:
+                print(f"[ERROR] {fe} Use --force to overwrite.")
+                return 1
+            except Exception as retry_err:
+                print(f"[ERROR] {retry_err}")
+                return 1
+        else:
+            print(f"[ERROR] {e}")
+            return 1
+    except FileExistsError as e:
+        print(f"[ERROR] {e} Use --force to overwrite.")
+        return 1
+    except Exception as e:
+        print(f"[ERROR] {e}")
+        return 1
+
+    print(f"[SUCCESS] Created portable launcher: {target_path}")
+    print("Run launch_mt5_portable.bat inside that folder to safely launch terminal64.exe /portable.")
+    return 0
+
+
 def main(argv: Optional[list] = None) -> None:
     """Main CLI entry point."""
     for stream in (sys.stdout, sys.stderr):
@@ -324,6 +374,37 @@ def main(argv: Optional[list] = None) -> None:
     p_init = subparsers.add_parser("init", help="Run diagnostic environment wizard")
     p_init.add_argument("--config", "-c", type=str, default="config.json", help="Path to config.json to check")
 
+    # Subcommand: setup (alias: setup-launcher)
+    p_setup = subparsers.add_parser(
+        "setup",
+        aliases=["setup-launcher"],
+        help="Generate launch_mt5_portable.bat inside the portable MT5 folder",
+    )
+    p_setup.add_argument(
+        "target",
+        nargs="?",
+        default=None,
+        help="Path to portable MT5 folder or terminal64.exe",
+    )
+    p_setup.add_argument(
+        "--terminal-dir", "-d",
+        type=str,
+        default=None,
+        help="Path to portable MT5 folder or terminal64.exe",
+    )
+    p_setup.add_argument(
+        "--config", "-c",
+        type=str,
+        default="config.json",
+        help="Path to config.json (default: config.json)",
+    )
+    p_setup.add_argument(
+        "--force", "-f",
+        action="store_true",
+        default=False,
+        help="Overwrite existing launch_mt5_portable.bat if it already exists",
+    )
+
     # Subcommand: menu
     p_menu = subparsers.add_parser("menu", help="Launch standalone Tkinter GUI control center")
     p_menu.add_argument("--config", "-c", type=str, default="tester_config.json", help="Path to config.json (default: tester_config.json)")
@@ -342,6 +423,8 @@ def main(argv: Optional[list] = None) -> None:
         sys.exit(cmd_compile(args))
     elif args.command == "init":
         sys.exit(cmd_init(args))
+    elif args.command in ("setup", "setup-launcher"):
+        sys.exit(cmd_setup_launcher(args))
     elif args.command == "menu":
         # Open-Core design: gui.py is an optional Pro / standalone binary-edition module
         # intentionally excluded from the open-source CLI repository (not a missing file).

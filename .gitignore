@@ -61,6 +61,7 @@ venv.bak/
 # AGY / Private Assets & Agent Contexts
 .agents/
 .gemini/
+.agentignore
 
 # Credentials, Secrets & Tokens
 credentials.json

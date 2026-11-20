@@ -49,10 +49,15 @@
 
 1. MetaQuotes またはご利用のブローカーから MetaTrader 5 をインストールします（未インストールの場合）。
 2. 専用フォルダ（例: `C:\MT5-Portable`）を作成し、通常インストール先（例: `C:\Program Files\MetaTrader 5`）から `terminal64.exe` と `metaeditor64.exe` を `C:\MT5-Portable` にコピーします。
-3. `/portable` フラグ付きで MT5 を **1回だけ** 起動して `C:\MT5-Portable` 内に `MQL5/` と `Config/` を初期化し、起動後に MT5 を閉じます:
+3. `/portable` フラグ付きで MT5 を **1回だけ** 起動して `C:\MT5-Portable` 内に `MQL5/` と `Config/` を初期化し、起動後に MT5 を閉じます。
+   組み込みのランチャー生成ツールを使うと安全です。まずポータブル MT5 フォルダ内に `launch_mt5_portable.bat` を生成します:
    ```powershell
-   C:\MT5-Portable\terminal64.exe /portable
+   python -m portable_ea5_tester setup "C:\MT5-Portable"
+   # または pea5 インストール後:
+   pea5 setup "C:\MT5-Portable"
    ```
+   その後、`C:\MT5-Portable` 内の `launch_mt5_portable.bat` をダブルクリックまたは実行すると、`terminal64.exe` の絶対パスを確認し、`y/n` 確認のうえで安全に `/portable` 起動できます。
+   （直接実行する場合: `C:\MT5-Portable\terminal64.exe /portable`）
 
 > **注意**: MetaEditor を手動または直接起動する場合も、データを `%APPDATA%` ではなくポータブルディレクトリ内に保持するため、同様に `/portable`（`C:\MT5-Portable\metaeditor64.exe /portable`）が必要です。
 > `/portable` ショートカットの作成方法や、誤って通常モードで起動した場合のクリーンアップ手順は [FAQ Q1](#8-トラブルシューティングと-faq) を参照してください。
@@ -115,22 +120,26 @@ Python 環境へインストールせず、リポジトリのルートから直�
 
 ### Step 3: 設定とスモークテストの実行
 
-サンプルファイルをコピーして、ローカル用の設定ファイルと認証情報ファイルを作成します:
+サンプル設定ファイルをコピーして、ローカル用の `config.json` を作成し、必要に応じて `terminal_dir`（および `expert`、`symbol` 等）を編集します:
 
 ```powershell
 copy config.example.json config.json
-copy credentials.example.json credentials.json
 ```
 
 > **JSON パス記法の注意**: JSON ファイル内のパスにはスラッシュ `/`（例: `"C:/MT5-Portable"`）またはエスケープされたバックスラッシュ `\\` を使用してください。単一の `\` は JSON 構文エラーになります。
 
-`credentials.json` にブローカー口座の `login`・`password`・`server` を記入し、以下の 4 コマンドで動作確認を行います（その他の認証情報の指定方法は [7.4 認証情報](#74-認証情報) を参照）:
+#### 基本・デフォルト構成（`credentials.json` 不要）
+
+通常の対話的な利用では、**`credentials.json` は不要** です。`pea5` は `<terminal_dir>/Config/common.ini` から `Login` と `Server` を自動検出し、MT5 側にキャッシュされたパスワードを使用します（キャッシュ済みデータのみで実行する場合は `--offline` を指定するか、`config.json` に `"offline": true` を設定してください）。
+
+以下の 4 コマンドで動作確認を行います:
 
 ```powershell
-# 1. MT5 端末・コンパイラ・認証情報のパスを診断
+# 1. MT5 端末・コンパイラ・自動検出された口座パスを診断
 pea5 init --config config.json
 
-# 2. MT5 GUI を1回起動してログイン情報をキャッシュし履歴データを同期（ログイン後に MT5 を閉じる）
+# 2. MT5 GUI (/portable) を1回起動し、「パスワードを保存」にチェックを入れてログイン（認証キャッシュと履歴同期後に MT5 を閉じる）
+#    （代替手段: .\scripts\launch_mt5_portable.bat）
 pea5 login --config config.json
 
 # 3. MQL5 EA（.mq5 -> .ex5）をコンパイル
@@ -139,6 +148,9 @@ pea5 compile --file "C:/MT5-Portable/MQL5/Experts/Examples/Moving Average/Moving
 # 4. サンプルバックテストを実行し、Markdown / CSV サマリーをエクスポート
 pea5 run --config config.json --export
 ```
+
+> **定期実行・無人バッチ運用**: MT5 の保存済みパスワードキャッシュは数日経過するとリセットまたは失効する場合があります。手動での再ログインなしに定期実行・無人バッチ実行を行う場合は、**リポジトリ外** の `~/.config/portable-ea5-tester/credentials.json` を配置する（または環境変数 `PEA5_PASSWORD` を使用する）ことを推奨します（詳細は [7.4 認証情報](#74-認証情報) を参照）。
+> **機密保護の注意**: `credentials.json` を使用する場合、ファイル（`login`・`password`・`server`）を誤って Git リポジトリにコミットしたり、AI チャットへそのまま貼り付けたりしないでください。
 
 ---
 
@@ -380,6 +392,7 @@ pea5 run --config config.json --task 0
 
 | コマンド | 用途 | 主なオプション |
 | :--- | :--- | :--- |
+| `pea5 setup` | ポータブル MT5 フォルダ内に `launch_mt5_portable.bat` を生成 | `<target>`（MT5 フォルダまたは `terminal64.exe` への位置引数）, `--terminal-dir` / `-d`, `--config` / `-c`, `--force` / `-f`（エイリアス: `setup-launcher`） |
 | `pea5 init` | `config.json`・MT5 端末・MetaEditor・認証情報の診断 | `--config` / `-c`（デフォルト: `config.json`） |
 | `pea5 login` | Login/Server を事前入力した状態で MT5 GUI（`/portable`）を起動し認証情報をキャッシュ | `--config` / `-c`（デフォルト: `config.json`） |
 | `pea5 compile` | `metaeditor64.exe` による `.mq5` → `.ex5` のヘッドレスコンパイル | `--file` / `-f`（必須）, `--compiler`, `--terminal-dir`（`/inc:<terminal_dir>/MQL5` を自動付与）, `--include` / `-i`（`<terminal_dir>/MQL5` 外の外部インクルードルートを指定する任意オプション）, `--timeout`（デフォルト: `60`） |
@@ -469,7 +482,19 @@ reports/20260330_Moving Average/Report_USDJPY_H1_set1.html
 
 ### 7.4 認証情報
 
-#### `credentials.json` スキーマ
+`pea5` は実行スタイルに応じて 2 段階の認証方式に対応しています:
+
+- **基本・対話的利用（`credentials.json` 不要）**: `pea5` は `<terminal_dir>/Config/common.ini` から `Login` と `Server` を自動検出し、`pea5 login --config config.json`（または `.\scripts\launch_mt5_portable.bat`）で「**パスワードを保存**」にチェックを入れてログインした際に MT5 がキャッシュしたパスワードを使用します。キャッシュ済みデータのみで実行する場合は `--offline`（または `config.json` の `"offline": true`）を指定してください。
+- **定期実行・無人バッチ運用（`credentials.json` 推奨）**: MT5 の保存済みパスワードキャッシュは数日経過するとリセットまたは失効する場合があります。手動再ログインなしで定期実行・無人バッチ運用を行う場合は、**リポジトリ外** の `~/.config/portable-ea5-tester/credentials.json` に配置する（または `PEA5_PASSWORD` を設定する）ことを推奨します。なお、デモ口座の有効期限切れやブローカー側で 2FA / OTP / パスワード変更が要求された場合は、引き続き手動での再認証が必要です。
+
+> **機密保護の注意**: `credentials.json`（`login`・`password`・`server`）を誤って Git にコミットしたり、AI チャットへそのまま貼り付けたりしないでください。
+
+#### `credentials.json` スキーマ（任意 / 無人バッチ運用向け）
+
+```powershell
+mkdir "$HOME\.config\portable-ea5-tester" -Force
+copy credentials.example.json "$HOME\.config\portable-ea5-tester\credentials.json"
+```
 
 ```json
 {
@@ -486,7 +511,7 @@ reports/20260330_Moving Average/Report_USDJPY_H1_set1.html
 3. ユーザーホーム設定（`~/.config/portable-ea5-tester/credentials.json`、フォールバック `~/.config/portable-strategy-tester/credentials.json`）
 4. 環境変数（`PEA5_LOGIN`, `PEA5_PASSWORD`, `PEA5_SERVER`、フォールバック `PST_LOGIN`, `PST_PASSWORD`, `PST_SERVER`）
 
-> **`--offline` に関する注意**: オフラインモードであっても、MT5 が `bases/<ServerName>/` 配下のヒストリカルデータやシンボル仕様を参照するため、`login` と `server` は **引き続き必須** です。事前に `pea5 login` で認証情報をキャッシュ済みであれば `password` のみ省略可能です。
+> **`--offline` に関する注意（`credentials.json` なし / `password` なし運用）**: オフラインモードであっても、MT5 が `bases/<ServerName>/` 配下のヒストリカルデータやシンボル仕様を参照するため、`login` と `server` は **引き続き必須** です。`<terminal_dir>/Config/common.ini` に `Login` と `Server` が記録されており、`pea5 login`（「パスワードを保存」チェック済み）でパスワードをキャッシュ済みであれば、`credentials.json` や `password` なしで `pea5 run --offline` を実行できます。
 
 ---
 
@@ -495,9 +520,10 @@ reports/20260330_Moving Average/Report_USDJPY_H1_set1.html
 <details>
 <summary>Q1: /portable なしで terminal64.exe を起動してしまった、または安全なショートカットを作りたい</summary>
 
-1. **`/portable` ショートカットの作成**:
-   - ポータブル MT5 フォルダ内の `terminal64.exe`（例: `C:\MT5-Portable\terminal64.exe`）を右クリック →「**ショートカットの作成**」。
-   - 作成したショートカットを右クリック →「**プロパティ**」→「**リンク先**」の末尾に ` /portable` を追記します（例: `"C:\MT5-Portable\terminal64.exe" /portable`）。
+1. **安全起動バッチの生成・利用、または `/portable` ショートカットの作成**:
+   - まず `python -m portable_ea5_tester setup "<path-to-mt5>"`（または `pea5 setup "<path-to-mt5>"`）を実行し、ポータブル MT5 フォルダ内に `launch_mt5_portable.bat` を生成します。
+   - その後、そのフォルダ内の `launch_mt5_portable.bat` をダブルクリックまたは実行すると、対象の `terminal64.exe` の絶対パスを確認し、`y/n` 確認のうえで安全に `/portable` 起動できます。
+   - ショートカットを作成する場合は、ポータブル MT5 フォルダ内の `terminal64.exe`（例: `C:\MT5-Portable\terminal64.exe`）を右クリック →「**ショートカットの作成**」、作成したショートカットを右クリック →「**プロパティ**」→「**リンク先**」の末尾に ` /portable` を追記します（例: `"C:\MT5-Portable\terminal64.exe" /portable`）。
 2. **誤って通常起動したフォルダの安全なクリーンアップ（`origin.txt` の仕組み）**:
    - MT5 を通常モード（非ポータブル）で起動すると、`%APPDATA%\MetaQuotes\Terminal\<hash>\` 配下に 32 文字の 16 進数ハッシュフォルダが作成されます。その中の `origin.txt` には、そのハッシュフォルダを生成した MT5 の正確なインストール先ディレクトリ（例: `D:\Trading\MT5_Main` や `C:\Program Files\MetaTrader 5` 等）が記録されています（`C:\MT5-Portable` は本ドキュメントにおける一例です）。
    - **安全なクリーンアップ手順**:
