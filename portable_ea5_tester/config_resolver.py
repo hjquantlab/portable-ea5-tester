@@ -165,8 +165,11 @@ def resolve_credentials(
         if not login or not server:
             raise ValueError(
                 "Missing account credentials: 'login' and 'server' are required when offline=False. "
-                "Specify them in config.json ('credentials_file'), via environment variables "
-                "(PEA5_LOGIN, PEA5_PASSWORD, PEA5_SERVER), or in ~/.config/portable-ea5-tester/credentials.json."
+                "Create ./credentials.json (copy credentials.example.json credentials.json) or "
+                "~/.config/portable-ea5-tester/credentials.json with login, password, and server, "
+                "or set PEA5_LOGIN / PEA5_PASSWORD / PEA5_SERVER. "
+                "Note: headless MT5 runs require credentials.json (including password) to avoid "
+                "'Accounts deleted due security reason'."
             )
     else:
         # In offline mode, if login or server is missing, return empty dict

@@ -139,6 +139,7 @@ def cmd_compile(args: argparse.Namespace) -> int:
             terminal_dir=args.terminal_dir,
             include_dir=args.include,
             timeout=args.timeout or 60,
+            log_path=args.log,
         )
         return 0 if res["success"] else 1
     except Exception as e:
@@ -190,11 +191,33 @@ def cmd_init(args: argparse.Namespace) -> int:
 
     # 4. Credentials check
     try:
-        creds = resolve_credentials(cfg, is_offline=True)
+        base_dir = cfg.get("_base_dir", ".") if cfg else "."
+        creds = resolve_credentials(cfg, base_dir=base_dir, terminal_dir=term_dir, is_offline=True)
         if creds.get("login") and creds.get("server"):
-            print(f"[CHECK] Account credentials: Login={creds.get('login')}, Server={creds.get('server')} -> [PASS]")
+            if creds.get("password"):
+                print(
+                    f"[CHECK] Account credentials: Login={creds.get('login')}, "
+                    f"Server={creds.get('server')} (password set) -> [PASS]"
+                )
+            else:
+                print(
+                    f"[CHECK] Account credentials: Login={creds.get('login')}, "
+                    f"Server={creds.get('server')} (password missing) -> [WARN]"
+                )
+                print(
+                    "[WARN] Headless 'pea5 run' without password in credentials.json may fail with "
+                    "'Accounts deleted due security reason'."
+                )
+                print(
+                    "[WARN] Recommended: copy credentials.example.json credentials.json "
+                    "(or ~/.config/portable-ea5-tester/credentials.json) and set login, password, and server."
+                )
         else:
-            print("[CHECK] Account credentials: Missing login or server (offline testing only) -> [INFO]")
+            print("[CHECK] Account credentials: Missing login or server (offline testing only) -> [WARN]")
+            print(
+                "[WARN] For headless 'pea5 run', run: copy credentials.example.json credentials.json "
+                "(or ~/.config/portable-ea5-tester/credentials.json) and set login, password, and server."
+            )
     except Exception as e:
         print(f"[CHECK] Account credentials check: {e} -> [WARN]")
 
@@ -369,6 +392,7 @@ def main(argv: Optional[list] = None) -> None:
     p_comp.add_argument("--terminal-dir", type=str, default=None, help="Portable MT5 directory containing compiler")
     p_comp.add_argument("--include", "-i", type=str, default=None, help="Additional include directory (/inc:)")
     p_comp.add_argument("--timeout", type=int, default=60, help="Compilation timeout in seconds (default: 60)")
+    p_comp.add_argument("--log", type=str, default=None, help="Optional explicit path for MetaEditor compilation log")
 
     # Subcommand: init
     p_init = subparsers.add_parser("init", help="Run diagnostic environment wizard")

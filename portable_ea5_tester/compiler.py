@@ -51,31 +51,75 @@ def find_metaeditor(
     return None
 
 
-def parse_compiler_log(log_content: str) -> Dict[str, Any]:
+def _decode_log_bytes(raw_bytes: bytes) -> str:
     """
-    Parses MT5 MetaEditor log content.
+    Decodes raw MetaEditor log bytes (UTF-16LE with/without BOM, UTF-8, or latin-1).
+    """
+    if not raw_bytes:
+        return ""
+
+    if raw_bytes.startswith(b"\xff\xfe") or b"\x00" in raw_bytes:
+        text = raw_bytes.decode("utf-16-le", errors="replace")
+        if text.startswith("\ufeff"):
+            text = text[1:]
+        return text
+
+    try:
+        text = raw_bytes.decode("utf-8")
+    except UnicodeDecodeError:
+        text = raw_bytes.decode("latin-1", errors="replace")
+
+    if text.startswith("\ufeff"):
+        text = text[1:]
+    return text
+
+
+def parse_compiler_log(
+    log_content: str,
+    target_filename: Optional[str] = None,
+) -> Dict[str, Any]:
+    """
+    Parses MT5 MetaEditor log content (both /log: output and logs/metaeditor.log).
     Extracts total errors, warnings, and individual issue entries.
+    When target_filename is provided and multiple summary lines exist, prefers
+    summary lines matching target_filename (case-insensitive).
     """
     errors_list: List[Dict[str, Any]] = []
     warnings_list: List[Dict[str, Any]] = []
     errors_count = 0
     warnings_count = 0
     summary_found = False
+    last_summary: Optional[tuple] = None
+    target_summary: Optional[tuple] = None
+    target_lower = target_filename.lower() if target_filename else None
 
     # Example line: C:\MQL5\Experts\MyEA.mq5(42,15) : error: undefined identifier
     line_pattern = re.compile(r"^(.*?)(?:\((\d+),(\d+)\))?\s*:\s*(\w+)\s*:\s*(.*)$")
+    # Summary patterns:
+    # - "Result: X errors, Y warnings"
+    # - "0\t12:34:56\tCompile\tMyEA.mq5 - 0 errors, 0 warnings"
+    # - "X errors, Y warnings"
+    result_summary_pattern = re.compile(
+        r"Result:\s*(\d+)\s*errors?,\s*(\d+)\s*warnings?",
+        re.IGNORECASE,
+    )
+    metaeditor_summary_pattern = re.compile(
+        r"(?:^|[\s\t\-:])(\d+)\s+errors?,\s*(\d+)\s+warnings?(?:\b|$)",
+        re.IGNORECASE,
+    )
 
     for line in log_content.splitlines():
         line = line.strip()
         if not line:
             continue
 
-        # Check summary line: "Result: X errors, Y warnings"
-        sum_match = re.search(r"Result:\s*(\d+)\s*errors,\s*(\d+)\s*warnings", line, re.IGNORECASE)
+        sum_match = result_summary_pattern.search(line) or metaeditor_summary_pattern.search(line)
         if sum_match:
-            errors_count = int(sum_match.group(1))
-            warnings_count = int(sum_match.group(2))
+            pair = (int(sum_match.group(1)), int(sum_match.group(2)))
+            last_summary = pair
             summary_found = True
+            if target_lower and target_lower in line.lower():
+                target_summary = pair
             continue
 
         m = line_pattern.match(line)
@@ -102,7 +146,11 @@ def parse_compiler_log(log_content: str) -> Dict[str, Any]:
             elif "warning" in severity:
                 warnings_list.append(entry)
 
-    if not summary_found:
+    if summary_found:
+        chosen = target_summary if target_summary is not None else last_summary
+        if chosen is not None:
+            errors_count, warnings_count = chosen
+    else:
         errors_count = len(errors_list)
         warnings_count = len(warnings_list)
 
@@ -119,10 +167,14 @@ def compile_ea(
     compiler_path: Optional[str] = None,
     terminal_dir: Optional[str] = None,
     include_dir: Optional[str] = None,
-    timeout: int = 60
+    timeout: int = 60,
+    log_path: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
     Compiles an .mq5 source file into .ex5 using MetaEditor.
+    By default (log_path=None), omits /log: to avoid MetaEditor path/space quirks
+    and reads newly appended entries from <terminal_dir>/logs/metaeditor.log.
+    If log_path is explicitly provided, passes /log:<log_path> and reads that file.
     Returns structured results including error/warning lists and binary verification.
     """
     mq5_abs = os.path.abspath(mq5_path)
@@ -143,19 +195,35 @@ def compile_ea(
 
     base_dir = os.path.dirname(mq5_abs)
     stem, _ = os.path.splitext(os.path.basename(mq5_abs))
-    log_path = os.path.join(base_dir, f"{stem}_compile.log")
     ex5_path = os.path.join(base_dir, f"{stem}.ex5")
-
-    # Clean up stale log and note pre-compile ex5 mtime
-    if os.path.exists(log_path):
-        try:
-            os.remove(log_path)
-        except OSError:
-            pass
-
     pre_mtime = os.path.getmtime(ex5_path) if os.path.exists(ex5_path) else 0.0
 
-    cmd = [compiler, f"/compile:{mq5_abs}", f"/log:{log_path}"]
+    explicit_log_abs: Optional[str] = None
+    metaeditor_log: Optional[str] = None
+    pre_log_size = 0
+
+    cmd = [compiler, f"/compile:{mq5_abs}"]
+
+    if log_path is not None:
+        explicit_log_abs = os.path.abspath(log_path)
+        log_parent = os.path.dirname(explicit_log_abs)
+        if log_parent:
+            os.makedirs(log_parent, exist_ok=True)
+        if os.path.exists(explicit_log_abs):
+            try:
+                os.remove(explicit_log_abs)
+            except OSError:
+                pass
+        cmd.append(f"/log:{explicit_log_abs}")
+    else:
+        effective_terminal_dir = terminal_dir or os.path.dirname(compiler)
+        metaeditor_log = os.path.join(effective_terminal_dir, "logs", "metaeditor.log")
+        if os.path.exists(metaeditor_log):
+            try:
+                pre_log_size = os.path.getsize(metaeditor_log)
+            except OSError:
+                pre_log_size = 0
+
     if include_dir and os.path.exists(include_dir):
         cmd.append(f"/inc:{os.path.abspath(include_dir)}")
 
@@ -170,26 +238,25 @@ def compile_ea(
         raise RuntimeError(f"Failed to execute MetaEditor process: {e}")
 
     log_content = ""
-    if os.path.exists(log_path):
-        try:
-            # MetaEditor logs are typically UTF-16LE with BOM
-            with open(log_path, "r", encoding="utf-16le", errors="replace") as f:
-                log_content = f.read()
-                if log_content.startswith("\ufeff"):
-                    log_content = log_content[1:]
-        except Exception:
+    if explicit_log_abs is not None:
+        if os.path.exists(explicit_log_abs):
             try:
-                with open(log_path, "r", encoding="utf-8", errors="replace") as f:
-                    log_content = f.read()
+                with open(explicit_log_abs, "rb") as f:
+                    log_content = _decode_log_bytes(f.read())
             except Exception:
                 pass
-        finally:
-            try:
-                os.remove(log_path)
-            except OSError:
-                pass
+    elif metaeditor_log and os.path.exists(metaeditor_log):
+        try:
+            current_size = os.path.getsize(metaeditor_log)
+            start_offset = 0 if current_size < pre_log_size else pre_log_size
+            with open(metaeditor_log, "rb") as f:
+                if start_offset > 0:
+                    f.seek(start_offset)
+                log_content = _decode_log_bytes(f.read())
+        except Exception:
+            pass
 
-    parsed = parse_compiler_log(log_content)
+    parsed = parse_compiler_log(log_content, target_filename=os.path.basename(mq5_abs))
     errors_cnt = parsed["errors_count"]
     warnings_cnt = parsed["warnings_count"]
 

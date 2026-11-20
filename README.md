@@ -128,17 +128,24 @@ copy config.example.json config.json
 
 > **JSON Path Note**: Always use forward slashes `/` (e.g., `"C:/MT5-Portable"`) or escaped backslashes `\\` in JSON files. Single backslashes `\` cause JSON syntax errors.
 
-#### Basic / Default Setup (No `credentials.json` Required)
+#### Standard Setup: `credentials.json` (Recommended for Headless `pea5 run`)
 
-For normal or interactive use, **you do not need `credentials.json`**. `pea5` automatically detects `Login` and `Server` from `<terminal_dir>/Config/common.ini` and uses MT5's cached password (pass `--offline` or set `"offline": true` in `config.json` when running purely on cached data).
+For reliable headless CLI execution (`pea5 run`), **create `credentials.json`** (local `./credentials.json` which is `.gitignore`-protected, or `~/.config/portable-ea5-tester/credentials.json`) and keep `config.json` free of account credentials:
+
+```powershell
+copy credentials.example.json credentials.json
+```
+
+> **Why `credentials.json` (with `password`) is needed**: When MT5 is launched headlessly with `/config:`, omitting the password causes MT5 to delete cached accounts on startup (`Accounts deleted due security reason`). Providing `login`, `password`, and `server` in `credentials.json` prevents this. (For purely cached offline runs after GUI login, you can pass `--offline` or set `"offline": true` in `config.json`.)
+> **Security Warning**: Never commit `credentials.json` to Git or paste its contents (`login`, `password`, `server`) into AI chats.
 
 Run the 4-command smoke test:
 
 ```powershell
-# 1. Verify terminal, compiler, and detected account paths
+# 1. Verify terminal, compiler, and credentials setup
 pea5 init --config config.json
 
-# 2. Launch MT5 GUI (/portable) once, log in with "Save password" checked to cache credentials & sync history, then close MT5
+# 2. (First-time / history sync) Launch MT5 GUI (/portable) once, log in with "Save password" checked, then close MT5
 #    (Alternatively, use: .\scripts\launch_mt5_portable.bat)
 pea5 login --config config.json
 
@@ -148,9 +155,6 @@ pea5 compile --file "C:/MT5-Portable/MQL5/Experts/Examples/Moving Average/Moving
 # 4. Run the sample backtest and export Markdown/CSV summaries
 pea5 run --config config.json --export
 ```
-
-> **Scheduled / Unattended Batch Runs**: MT5's saved password cache may reset or expire after several days. For periodic or unattended batch execution without manual re-login, placing `credentials.json` **outside the repository** at `~/.config/portable-ea5-tester/credentials.json` (or setting `PEA5_PASSWORD`) is recommended (see [7.4 Credentials](#74-credentials)).
-> **Security Warning**: If you use `credentials.json`, never commit it to Git or paste its contents (`login`, `password`, `server`) into AI chats.
 
 ---
 
@@ -395,7 +399,7 @@ pea5 run --config config.json --task 0
 | `pea5 setup` | Generate `launch_mt5_portable.bat` inside the portable MT5 folder | `<target>` (positional path to MT5 folder or `terminal64.exe`), `--terminal-dir` / `-d`, `--config` / `-c`, `--force` / `-f` (alias: `setup-launcher`) |
 | `pea5 init` | Verify `config.json`, MT5 terminal, MetaEditor, and credentials | `--config` / `-c` (default: `config.json`) |
 | `pea5 login` | Launch MT5 GUI (`/portable`) with pre-filled Login/Server to cache credentials | `--config` / `-c` (default: `config.json`) |
-| `pea5 compile` | Headless `.mq5` -> `.ex5` compilation via `metaeditor64.exe` | `--file` / `-f` (required), `--compiler`, `--terminal-dir` (automatically adds `/inc:<terminal_dir>/MQL5`), `--include` / `-i` (optional external include root outside `<terminal_dir>/MQL5`), `--timeout` (default: `60`) |
+| `pea5 compile` | Headless `.mq5` -> `.ex5` compilation via `metaeditor64.exe` | `--file` / `-f` (required), `--compiler`, `--terminal-dir` (automatically adds `/inc:<terminal_dir>/MQL5`), `--include` / `-i` (optional external include root outside `<terminal_dir>/MQL5`), `--timeout` (default: `60`), `--log` (optional explicit compilation log path; by default reads `<terminal_dir>/logs/metaeditor.log` without `/log:`) |
 | `pea5 run` | Execute backtest or optimization tasks (auto-compiles .mq5 targets) | `--config` / `-c` (default: `config.json`), `--task` / `-t`, `--offline`, `--timeout`, `--export` / `-e`, `--no-open-report` |
 
 > **`pea5 compile` output & include behavior**: The `.ex5` binary is written next to the `--file` source (same folder, same base name). Specifying `--terminal-dir` automatically adds `/inc:<terminal_dir>/MQL5` to the MetaEditor include path. The `--include` option is optional, used only when custom external header directories outside `<terminal_dir>/MQL5` are needed. Note that `pea5 compile` does not copy the `.ex5` into `<terminal_dir>/MQL5/Experts/`; `pea5 run` handles that deployment automatically.
@@ -482,16 +486,22 @@ reports/20260330_Moving Average/Report_USDJPY_H1_set1.html
 
 ### 7.4 Credentials
 
-`pea5` supports a two-tier authentication model depending on how you run your tests:
+For headless CLI execution (`pea5 run`), **`credentials.json` (with `login`, `password`, and `server`) is the standard & recommended setup**:
 
-- **Basic / Interactive Use (No `credentials.json` required)**: `pea5` automatically detects `Login` and `Server` from `<terminal_dir>/Config/common.ini` and relies on MT5's cached password saved when you log in via `pea5 login --config config.json` (or `.\scripts\launch_mt5_portable.bat`) with **"Save password"** checked. Use `--offline` (or `"offline": true` in `config.json`) when running purely on cached data.
-- **Scheduled / Unattended Batch Runs (`credentials.json` recommended)**: MT5's saved password cache may reset or expire after several days. For periodic or unattended batch runs without manual re-login, store `credentials.json` **outside the repository** at `~/.config/portable-ea5-tester/credentials.json` (or provide `PEA5_PASSWORD`). Note that if a demo account expires or the broker requires 2FA/OTP or a password change, manual re-authentication is still required.
+- **Why `credentials.json` is needed**: When MT5 starts headlessly with `/config:`, omitting `password` causes MT5 to delete cached accounts on startup (`Accounts deleted due security reason`). Keeping `credentials.json` separate from `config.json` avoids hardcoding secrets in `config.json` while ensuring reliable headless runs.
+- **Where to place `credentials.json`**:
+  - Local project root: `./credentials.json` (excluded by `.gitignore`)
+  - Or outside the repository: `~/.config/portable-ea5-tester/credentials.json`
 
-> **Security Warning**: Never commit `credentials.json` to Git or paste its contents (`login`, `password`, `server`) into AI chats.
+> **Security Warning**: Never commit `credentials.json` to Git or paste its contents (`login`, `password`, `server`) into AI chats. Always keep `config.json` free of account credentials.
 
-#### `credentials.json` Schema (Optional / For Unattended Batch Runs)
+#### `credentials.json` Schema (Recommended)
 
 ```powershell
+# Option A: Local project root (.gitignore-protected)
+copy credentials.example.json credentials.json
+
+# Option B: User home directory (outside repository)
 mkdir "$HOME\.config\portable-ea5-tester" -Force
 copy credentials.example.json "$HOME\.config\portable-ea5-tester\credentials.json"
 ```

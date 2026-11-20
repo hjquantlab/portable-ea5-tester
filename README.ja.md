@@ -128,17 +128,24 @@ copy config.example.json config.json
 
 > **JSON パス記法の注意**: JSON ファイル内のパスにはスラッシュ `/`（例: `"C:/MT5-Portable"`）またはエスケープされたバックスラッシュ `\\` を使用してください。単一の `\` は JSON 構文エラーになります。
 
-#### 基本・デフォルト構成（`credentials.json` 不要）
+#### 標準構成: `credentials.json`（ヘッドレス `pea5 run` の推奨設定）
 
-通常の対話的な利用では、**`credentials.json` は不要** です。`pea5` は `<terminal_dir>/Config/common.ini` から `Login` と `Server` を自動検出し、MT5 側にキャッシュされたパスワードを使用します（キャッシュ済みデータのみで実行する場合は `--offline` を指定するか、`config.json` に `"offline": true` を設定してください）。
+安定したヘッドレス CLI 実行（`pea5 run`）のため、**`credentials.json` を作成** し（`.gitignore` で保護された `./credentials.json`、または `~/.config/portable-ea5-tester/credentials.json`）、`config.json` には口座認証情報を含めず分離することを推奨します:
+
+```powershell
+copy credentials.example.json credentials.json
+```
+
+> **`credentials.json`（`password` 含む）が必要な理由**: MT5 を `/config:` 付きでヘッドレス起動する際、パスワードが省略されると MT5 が起動時にキャッシュ済み口座を削除し（`Accounts deleted due security reason`）失敗する場合があります。`credentials.json` に `login`・`password`・`server` を設定することでこの問題を防止できます（GUI ログイン後のキャッシュ済みデータのみで実行する場合は、`--offline` または `config.json` の `"offline": true` を使用してください）。
+> **機密保護の注意**: `credentials.json`（`login`・`password`・`server`）を誤って Git リポジトリにコミットしたり、AI チャットへそのまま貼り付けたりしないでください。
 
 以下の 4 コマンドで動作確認を行います:
 
 ```powershell
-# 1. MT5 端末・コンパイラ・自動検出された口座パスを診断
+# 1. MT5 端末・コンパイラ・認証情報の設定を診断
 pea5 init --config config.json
 
-# 2. MT5 GUI (/portable) を1回起動し、「パスワードを保存」にチェックを入れてログイン（認証キャッシュと履歴同期後に MT5 を閉じる）
+# 2. （初回 / 履歴同期）MT5 GUI (/portable) を1回起動し、「パスワードを保存」にチェックを入れてログイン後に MT5 を閉じる
 #    （代替手段: .\scripts\launch_mt5_portable.bat）
 pea5 login --config config.json
 
@@ -148,9 +155,6 @@ pea5 compile --file "C:/MT5-Portable/MQL5/Experts/Examples/Moving Average/Moving
 # 4. サンプルバックテストを実行し、Markdown / CSV サマリーをエクスポート
 pea5 run --config config.json --export
 ```
-
-> **定期実行・無人バッチ運用**: MT5 の保存済みパスワードキャッシュは数日経過するとリセットまたは失効する場合があります。手動での再ログインなしに定期実行・無人バッチ実行を行う場合は、**リポジトリ外** の `~/.config/portable-ea5-tester/credentials.json` を配置する（または環境変数 `PEA5_PASSWORD` を使用する）ことを推奨します（詳細は [7.4 認証情報](#74-認証情報) を参照）。
-> **機密保護の注意**: `credentials.json` を使用する場合、ファイル（`login`・`password`・`server`）を誤って Git リポジトリにコミットしたり、AI チャットへそのまま貼り付けたりしないでください。
 
 ---
 
@@ -395,7 +399,7 @@ pea5 run --config config.json --task 0
 | `pea5 setup` | ポータブル MT5 フォルダ内に `launch_mt5_portable.bat` を生成 | `<target>`（MT5 フォルダまたは `terminal64.exe` への位置引数）, `--terminal-dir` / `-d`, `--config` / `-c`, `--force` / `-f`（エイリアス: `setup-launcher`） |
 | `pea5 init` | `config.json`・MT5 端末・MetaEditor・認証情報の診断 | `--config` / `-c`（デフォルト: `config.json`） |
 | `pea5 login` | Login/Server を事前入力した状態で MT5 GUI（`/portable`）を起動し認証情報をキャッシュ | `--config` / `-c`（デフォルト: `config.json`） |
-| `pea5 compile` | `metaeditor64.exe` による `.mq5` → `.ex5` のヘッドレスコンパイル | `--file` / `-f`（必須）, `--compiler`, `--terminal-dir`（`/inc:<terminal_dir>/MQL5` を自動付与）, `--include` / `-i`（`<terminal_dir>/MQL5` 外の外部インクルードルートを指定する任意オプション）, `--timeout`（デフォルト: `60`） |
+| `pea5 compile` | `metaeditor64.exe` による `.mq5` → `.ex5` のヘッドレスコンパイル | `--file` / `-f`（必須）, `--compiler`, `--terminal-dir`（`/inc:<terminal_dir>/MQL5` を自動付与）, `--include` / `-i`（`<terminal_dir>/MQL5` 外の外部インクルードルートを指定する任意オプション）, `--timeout`（デフォルト: `60`）, `--log`（任意の明示的コンパイルログ出力先。未指定時は `/log:` を渡さず `<terminal_dir>/logs/metaeditor.log` を参照） |
 | `pea5 run` | バックテストまたは最適化タスクを実行（.mq5 指定時は事前コンパイルも自動実行） | `--config` / `-c`（デフォルト: `config.json`）, `--task` / `-t`, `--offline`, `--timeout`, `--export` / `-e`, `--no-open-report` |
 
 > **`pea5 compile` の出力先とインクルード設定**: `.ex5` バイナリは `--file` のソースと同じフォルダ（同じベース名）に出力されます。`--terminal-dir` を指定すると MetaEditor のインクルード探索パスに `/inc:<terminal_dir>/MQL5` が自動的に追加されます。`--include` は `<terminal_dir>/MQL5` 外にある独自の外部ヘッダーディレクトリを探索させる場合にのみ指定する任意オプションです。なお、`pea5 compile` 単体では `<terminal_dir>/MQL5/Experts/` への自動コピーは行われません（このコピーは `pea5 run` 実行時に自動で行われます）。
@@ -482,16 +486,22 @@ reports/20260330_Moving Average/Report_USDJPY_H1_set1.html
 
 ### 7.4 認証情報
 
-`pea5` は実行スタイルに応じて 2 段階の認証方式に対応しています:
+ヘッドレス CLI 実行（`pea5 run`）では、**`credentials.json`（`login`・`password`・`server` を記載）を標準・推奨構成** としています:
 
-- **基本・対話的利用（`credentials.json` 不要）**: `pea5` は `<terminal_dir>/Config/common.ini` から `Login` と `Server` を自動検出し、`pea5 login --config config.json`（または `.\scripts\launch_mt5_portable.bat`）で「**パスワードを保存**」にチェックを入れてログインした際に MT5 がキャッシュしたパスワードを使用します。キャッシュ済みデータのみで実行する場合は `--offline`（または `config.json` の `"offline": true`）を指定してください。
-- **定期実行・無人バッチ運用（`credentials.json` 推奨）**: MT5 の保存済みパスワードキャッシュは数日経過するとリセットまたは失効する場合があります。手動再ログインなしで定期実行・無人バッチ運用を行う場合は、**リポジトリ外** の `~/.config/portable-ea5-tester/credentials.json` に配置する（または `PEA5_PASSWORD` を設定する）ことを推奨します。なお、デモ口座の有効期限切れやブローカー側で 2FA / OTP / パスワード変更が要求された場合は、引き続き手動での再認証が必要です。
+- **`credentials.json` が必要な理由**: MT5 を `/config:` 付きでヘッドレス起動する際、`password` が省略されると MT5 が起動時にキャッシュ済み口座を削除し（`Accounts deleted due security reason`）エラーとなる場合があります。`config.json` には認証情報を書かず `credentials.json` へ分離することで、安全かつ確実にヘッドレス実行できます。
+- **配置場所**:
+  - プロジェクト直下: `./credentials.json`（`.gitignore` で除外済み）
+  - またはリポジトリ外: `~/.config/portable-ea5-tester/credentials.json`
 
-> **機密保護の注意**: `credentials.json`（`login`・`password`・`server`）を誤って Git にコミットしたり、AI チャットへそのまま貼り付けたりしないでください。
+> **機密保護の注意**: `credentials.json`（`login`・`password`・`server`）を誤って Git にコミットしたり、AI チャットへそのまま貼り付けたりしないでください。`config.json` にも口座認証情報は記載しないことを推奨します。
 
-#### `credentials.json` スキーマ（任意 / 無人バッチ運用向け）
+#### `credentials.json` スキーマ（推奨）
 
 ```powershell
+# 方法 A: プロジェクト直下（.gitignore 対象）
+copy credentials.example.json credentials.json
+
+# 方法 B: ユーザーホーム配下（リポジトリ外）
 mkdir "$HOME\.config\portable-ea5-tester" -Force
 copy credentials.example.json "$HOME\.config\portable-ea5-tester\credentials.json"
 ```
